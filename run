@@ -1,0 +1,92 @@
+#!/bin/bash
+
+function cleanup() {
+  # List all Service Accounts
+  rm -rf ./terraform/.terraform
+  rm -rf ./terraform/.terraform.lock.hcl
+
+  # Delete all Service Accounts
+
+  # List all Users
+
+  # Delete all Users
+
+
+  exit 0
+}
+
+trap cleanup SIGKILL SIGINT
+
+
+
+# Test with login to Boundary after provisioning
+# Test with login to Boundary after provisioning
+function all() {
+    build
+    run
+}
+
+function build() {
+    docker buildx build --platform linux/amd64,linux/arm64 -t markchristopherwest/graphql-server-go:latest --push .
+}
+function run() {
+    # export PASS=foofoofoo
+
+    curl -X POST http://localhost:8080/graphql \
+        -H "Content-Type: application/json" \
+        -d '{"query":"mutation { createUser(username: \"john_doe\", password: \"secret123\") { id username } }"}'
+
+    export USER_TOKEN=$(curl -X POST http://localhost:8080/graphql \
+        -H "Content-Type: application/json" \
+        -d '{"query":"mutation { login(username: \"john_doe\", password: \"secret123\") { token user { id } } }"}'  | jq -r .data.login.token)
+
+    curl -X POST http://localhost:8080/graphql \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $USER_TOKEN" \
+        -d '{"query":"mutation { createServiceAccount(name: \"Background Job\") { serviceAccount { id name } secret } }"}' | jq
+
+    echo "your user token is $USER_TOKEN"
+
+    
+
+}
+
+function repush() {
+
+    git checkout --orphan latest_branch
+    git add -A
+    git commit -am "commit message"
+    git branch -D main
+    git branch -m main
+    git push -f origin main
+
+
+
+}
+
+function strip() {
+  echo "$1" | tr -d '"'
+}
+
+for arg in "$@"
+do
+    case $arg in
+        all)
+        run
+        setup
+        shift
+        ;;
+        repush)
+        repush
+        shift
+        ;;
+        run)
+        run
+        shift
+        ;;
+        *)
+        echo "cmd not found: try 'all', 'run', or 'setup'"
+        shift
+        ;;
+    esac
+done
